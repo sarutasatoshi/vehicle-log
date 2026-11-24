@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="車両日報">
+<meta name="theme-color" content="#2b3f63">
+<title>車両日報</title>
+<style>
+  :root { --main:#2b3f63; --accent:#c9771a; --bg:#eceff3; --line:#d3d9e0; --text:#1d2329; --sat:#dcefd0; --sun:#fbe0cf; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+         -webkit-text-size-adjust:100%; }
+  header { position:sticky; top:0; z-index:5; background:var(--main); color:#fff;
+           padding:calc(env(safe-area-inset-top) + 10px) 12px 10px; display:flex; align-items:center; gap:10px; }
+  header h1 { font-size:18px; margin:0; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  header h1 small { font-size:13px; font-weight:600; opacity:.85; margin-left:6px; }
+  header button { background:transparent; color:#fff; border:1px solid rgba(255,255,255,.6); border-radius:8px; padding:7px 12px; font-size:14px; font-weight:600; }
+  main { max-width:720px; margin:0 auto; padding:8px 10px 110px; }
+
+  /* ===== 元の様式（車両日報）どおりの画面 ===== */
+  .paper { background:#fff; color:#000; padding:12px 6px 14px; box-shadow:0 1px 4px rgba(0,0,0,.18);
+           font-family:"Yu Gothic","YuGothic","Hiragino Sans","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+           font-size:clamp(10.5px, 3vw, 15px); }
+  .ptop { display:flex; align-items:flex-start; gap:2%; }
+  .ymbox { position:relative; display:grid; grid-template-columns:1.9fr 1fr; width:34%; flex:none; border:1.5px solid #000; }
+  .ymbox div { text-align:center; }
+  .ymh { background:#d5dce8; border-bottom:1px solid #000; padding:3px 0; }
+  .ymh:first-child, .ymv:nth-child(3) { border-right:1px solid #000; }
+  .ymv { font-size:1.75em; font-weight:700; padding:6px 0; }
+  .ymbox input { position:absolute; inset:0; width:100%; height:100%; opacity:0; border:none; padding:0; margin:0; font-size:16px; }
+  .spin { display:flex; flex-direction:column; width:9%; flex:none; background:#e7e9ec; }
+  .spin button { border:none; background:transparent; font-size:1.1em; padding:6px 0; color:#000; }
+  .spin button + button { border-top:1px solid #cfd3d8; }
+  .ptitle { flex:1; min-width:0; text-align:center; }
+  .tbox { background:#c9d3e3; font-size:1.75em; font-weight:700; padding:6px 0; letter-spacing:.1em;
+          border-bottom:4px double #000; white-space:nowrap; }
+  .car { margin-top:8px; font-size:1.15em; letter-spacing:.08em; }
+  .mgr { text-align:right; margin:4px 4px 0; font-size:.95em; }
+  .mgr span { font-size:1.2em; margin-left:1.2em; }
+  .pnote { color:#d32f2f; font-size:.85em; margin:4px 0 6px; }
+  .grid { display:grid; grid-template-columns:19% 7% 11% minmax(0,1fr) 13.5% 13.5% 11%;
+          border-top:1.5px solid #000; border-left:1.5px solid #000; font-variant-numeric:tabular-nums; }
+  .grid > div { border-right:1px solid #000; border-bottom:1px solid #000; min-width:0; padding:0 3px;
+                display:flex; align-items:center; min-height:2.6em; white-space:nowrap; overflow:hidden; }
+  .grid > div:nth-child(7n) { border-right-width:1.5px; }
+  .grid .h { justify-content:center; font-size:1.05em; min-height:2.9em; }
+  .grid .c { justify-content:center; }
+  .grid .n { justify-content:flex-end; }
+  .grid .t { text-overflow:ellipsis; display:block; line-height:2.6em; }
+  .grid .sat { background:#9BCB7A; } .grid .sun { background:#F2A578; }
+  .grid .today { box-shadow:inset 0 2px 0 #c9771a, inset 0 -2px 0 #c9771a; }
+  .grid .bad { color:#c62828; }
+  .grid .tap { cursor:pointer; }
+  .grid.bottom { border-top:none; grid-template-columns:26% minmax(0,1fr) 13.5% 24.5%; border-bottom:.5px solid #000; }
+  .grid.bottom > div:nth-child(4n) { border-right-width:1.5px; }
+  .grid.bottom .lab { background:#d5dce8; justify-content:center; font-size:.92em; }
+  .grid.bottom .mid { background:#eef1f5; font-size:.85em; }
+  .grid.bottom .mid.small { font-size:.72em; white-space:normal; line-height:1.3; padding:3px; }
+  .grid.bottom .lab2 { justify-content:center; font-size:1.05em; }
+  .grid.bottom .val { justify-content:flex-end; gap:2px; }
+  .grid.bottom .val input { width:100%; min-width:0; text-align:right; border:none; background:#fffbe6; padding:4px 2px; font-size:16px; font-family:inherit; border-radius:0; }
+  .grid.bottom .oil { flex-direction:column; align-items:flex-start; justify-content:center; padding:3px; line-height:1.6; font-size:.76em; }
+  .grid.bottom .oil > div { white-space:nowrap; }
+  .grid.bottom .oil input { width:5em; border:none; border-bottom:1px solid #888; background:#fffbe6; font-size:16px; padding:0 2px; text-align:right; font-family:inherit; border-radius:0; }
+  #oEl button { border:none; background:transparent; font:inherit; color:#000; padding:2px 4px; margin:0 1px; border-radius:50%; }
+  #oEl button:first-of-type { margin-left:.8em; }
+  #oEl button.on { box-shadow:0 0 0 1.5px #000; }
+  .hint { font-size:13px; color:#5f6b75; margin:8px 2px; }
+  .hint button { font-size:13px; padding:4px 10px; margin-left:6px; }
+
+  .card { background:#fff; border-radius:12px; padding:12px; margin-top:12px; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  .card h2 { font-size:15px; margin:0 0 8px; color:var(--main); }
+  .fl { display:flex; align-items:center; gap:8px; margin:8px 0; }
+  .fl label { width:110px; flex:none; font-size:14px; font-weight:600; }
+  .fl input { flex:1; min-width:0; }
+  .fl .unit { flex:none; font-size:14px; color:#5f6b75; }
+  .note { font-size:12.5px; color:#5f6b75; line-height:1.6; }
+  input[type=text], input[type=number], input:not([type]) { font-size:16px; padding:9px 10px; border:1px solid var(--line); border-radius:9px; background:#fff; font-family:inherit; color:var(--text); }
+  input:focus { outline:2px solid #7d95bd; border-color:transparent; }
+  .seg { display:flex; gap:6px; }
+  .seg button { min-width:56px; }
+  .seg button.on { background:var(--main); color:#fff; border-color:var(--main); }
+
+  .btn { border:1px solid var(--line); background:#fff; color:var(--text); border-radius:9px; padding:9px 14px; font-size:15px; font-family:inherit; }
+  .btn.pri { background:var(--main); color:#fff; border-color:var(--main); font-weight:700; }
+  .btn.warn { color:#c62828; }
+  .outbar { position:fixed; left:0; right:0; bottom:0; z-index:6; padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);
+            background:rgba(236,239,243,.94); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); border-top:1px solid var(--line); }
+  .outbar .btn { display:block; width:100%; max-width:700px; margin:0 auto; padding:13px; font-size:16px; background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; }
+
+  /* シート（下から出る入力画面） */
+  .shade { position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.4); display:flex; align-items:flex-end; justify-content:center; }
+  .shade[hidden] { display:none; }
+  .sheet { background:#f6f7f9; width:100%; max-width:640px; max-height:92vh; overflow:auto; border-radius:16px 16px 0 0;
+           padding:14px 14px calc(env(safe-area-inset-bottom) + 14px); }
+  .sheet h3 { margin:0 0 10px; font-size:18px; color:var(--main); display:flex; align-items:center; gap:8px; }
+  .sheet h3 .sp { flex:1; }
+  .sheet h3.sat { color:#2f7d3a; } .sheet h3.sun { color:#c2410c; }
+  .sheet .f { margin-bottom:12px; }
+  .sheet .f > label { display:block; font-size:13px; font-weight:700; color:#46525c; margin-bottom:4px; }
+  .sheet .f input { width:100%; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip { border:1px solid #b9c4d1; background:#fff; border-radius:16px; padding:6px 12px; font-size:14px; font-family:inherit; color:var(--text); }
+  .chip.on { background:var(--main); color:#fff; border-color:var(--main); }
+  .odo2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .sub { font-size:12px; color:#5f6b75; margin-top:4px; min-height:16px; }
+  .sub button { font-size:12px; padding:2px 8px; }
+  .runbox { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; display:flex; align-items:baseline; gap:8px; }
+  .runbox b { font-size:24px; font-variant-numeric:tabular-nums; }
+  .runbox.bad b { color:#c62828; }
+  .sbtns { display:flex; gap:8px; margin-top:6px; }
+  .sbtns .btn { flex:1; padding:11px 6px; }
+  .list1 { background:#fff; border-radius:10px; border:1px solid var(--line); }
+  .list1 div { display:flex; align-items:center; padding:8px 10px; border-bottom:1px solid var(--line); font-size:15px; }
+  .list1 div:last-child { border-bottom:none; }
+  .list1 span { flex:1; }
+  .list1 button { border:none; background:transparent; color:#c62828; font-size:14px; }
+
+  #toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 86px); transform:translateX(-50%); z-index:40;
+           background:rgba(29,35,41,.92); color:#fff; padding:10px 16px; border-radius:10px; font-size:14px; display:none; max-width:90vw; }
+  #busy { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); color:#fff; display:none; align-items:center; justify-content:center; font-size:16px; font-weight:700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>車両日報<small id="hCar"></small></h1>
+  <button id="mToday">今日</button>
+  <button id="btnMenu">設定</button>
+</header>
+<main>
+  <div class="paper">
+    <div class="ptop">
+      <div class="ymbox">
+        <div class="ymh">年</div><div class="ymh">月</div>
+        <div class="ymv" id="vYear"></div><div class="ymv" id="vMonth"></div>
+        <input id="mPick" type="month" aria-label="年月を選ぶ">
+      </div>
+      <div class="spin"><button id="mNext" aria-label="次の月">▲</button><button id="mPrev" aria-label="前の月">▼</button></div>
+      <div class="ptitle"><div class="tbox">車 両 日 報</div><div class="car" id="pCar"></div></div>
+    </div>
+    <div class="mgr">車両管理者：<span id="pMgr"></span></div>
+    <div class="pnote">※ 上記『年・月』をタップすると月を選べます。日付の行をタップして入力</div>
+    <div class="grid" id="table"></div>
+    <div class="grid bottom">
+      <div class="lab">走行前点検：</div>
+      <div class="mid small">照明・ウインカー・ストップランプ・車幅灯・タイヤのへり空気圧</div>
+      <div class="lab2">実走行</div>
+      <div class="val"><input id="sRun" inputmode="numeric" aria-label="実走行"><span>km</span></div>
+      <div class="lab">オイル交換情報：</div>
+      <div class="mid oil">
+        <div>●交換時走行距離：</div>
+        <div><input id="oKm" inputmode="numeric" aria-label="交換時走行距離"> km</div>
+        <div id="oEl">エレメント交換<button data-v="有">有</button>・<button data-v="無">無</button></div>
+      </div>
+      <div class="lab2">月間走行</div>
+      <div class="val"><input id="sMonth" inputmode="numeric" aria-label="月間走行"><span>km</span></div>
+    </div>
+  </div>
+  <div class="hint" id="sumHint"></div>
+</main>
+<div class="outbar"><button class="btn" id="btnOut">PDF・Excelを作ってメールで送る</button></div>
+
+<!-- 1日分の入力 -->
+<div class="shade" id="dayShade" hidden>
+  <div class="sheet" id="daySheet">
+    <h3 id="dTitle"><span id="dTitleText"></span><span class="sp"></span><button class="btn" id="dClose">閉じる</button></h3>
+    <div class="f">
+      <label for="dDriver">運転者</label>
+      <input id="dDriver" placeholder="名前を選ぶか入力" autocomplete="off">
+      <div class="chips" id="dChips"></div>
+    </div>
+    <div class="f">
+      <label for="dSite">現場名</label>
+      <input id="dSite" placeholder="現場名を入力" autocomplete="off">
+    </div>
+    <div class="f odo2">
+      <div>
+        <label for="dBefore" style="display:block;font-size:13px;font-weight:700;color:#46525c;margin-bottom:4px">走行前（km）</label>
+        <input id="dBefore" inputmode="numeric" autocomplete="off" style="width:100%">
+        <div class="sub" id="dBeforeSub"></div>
+      </div>
+      <div>
+        <label for="dAfter" style="display:block;font-size:13px;font-weight:700;color:#46525c;margin-bottom:4px">走行後（km）</label>
+        <input id="dAfter" inputmode="numeric" autocomplete="off" style="width:100%">
+        <div class="sub">メーターの数字</div>
+      </div>
+    </div>
+    <div class="f">
+      <label>実走行（自動計算）</label>
+      <div class="runbox" id="dRunBox"><b id="dRun">—</b><span>km</span><span class="sub" id="dRunMsg" style="margin:0"></span></div>
+    </div>
+    <div class="sbtns">
+      <button class="btn" id="dPrev">◀ 前の日</button>
+      <button class="btn pri" id="dNext">次の日 ▶</button>
+    </div>
+    <div class="sbtns"><button class="btn warn" id="dClear">この日を消す</button></div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div class="shade" id="setShade" hidden>
+  <div class="sheet">
+    <h3>設定<span class="sp"></span><button class="btn" id="setClose">閉じる</button></h3>
+    <div class="f"><label for="cCar">車両名</label><input id="cCar"></div>
+    <div class="f"><label for="cMgr">車両管理者</label><input id="cMgr"></div>
+    <div class="f"><label>運転者の候補（×で候補から外す）</label><div class="list1" id="cDrivers"></div>
+      <div class="sub">新しい名前は、入力画面で入れると自動で候補に追加されます。</div></div>
+    <div class="f"><label>データのバックアップ</label>
+      <div class="sbtns"><button class="btn" id="bkSave">バックアップを保存</button><button class="btn" id="bkLoad">バックアップから戻す</button></div>
+      <div class="sub">データはこの携帯の中だけに保存されています。機種変更のときなどに使ってください。</div>
+      <input type="file" id="bkFile" accept=".json,application/json" hidden>
+    </div>
+  </div>
+</div>
+
+<!-- 出力 -->
+<div class="shade" id="ready" hidden>
+  <div class="sheet">
+    <h3>できました<span class="sp"></span><button class="btn" id="rClose">閉じる</button></h3>
+    <div class="note" id="readyMsg" style="margin-bottom:10px"></div>
+    <div class="sbtns"><button class="btn pri" id="rBoth">PDFとExcelを送る</button></div>
+    <div class="sbtns"><button class="btn" id="rPdf">PDFだけ</button><button class="btn" id="rXlsx">Excelだけ</button></div>
+    <div class="sbtns"><button class="btn" id="rDl">端末に保存</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="busy">作成中…</div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const enc = new TextEncoder();
+const pad2 = n => String(n).padStart(2, '0');
+const WD = '日月火水木金土';
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const KEY = 'vehicleLog.v1';
+
+/* ================= 保存データ =================
+   S.cfg   = { car, manager, drivers:[名前…（最近使った順）] }
+   S.months['2026-12'] = { days:{ '1':{driver, site, before?, after} }, run, monthRun, oilKm, element }
+   走行前(before)は手入力したときだけ保存。空なら「最後に走った日の走行後」を自動で使う。 */
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (!S || typeof S !== 'object') S = {};
+S.cfg = Object.assign({ car: 'プロボックス', manager: '猿田', drivers: [] }, S.cfg || {});
+S.months = S.months || {};
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('保存に失敗しました: ' + e.message); } }
+
+function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ms); }
+function busy(on, msg = '作成中…') { const b = $('#busy'); b.textContent = msg; b.style.display = on ? 'flex' : 'none'; }
+const toBlob = (cv, type, q) => new Promise(r => cv.toBlob(r, type, q));
+
+/* ================= 数字・日付 ================= */
+const num = v => { if (v == null) return null; const s = String(v).replace(/[,，\s]/g, '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)); if (s === '' || !/^-?\d+(\.\d+)?$/.test(s)) return null; return Number(s); };
+const fmt = n => n == null ? '' : n.toLocaleString('ja-JP');
+const ymOf = (y, m) => `${y}-${pad2(m)}`;
+const ymParts = ym => ym.split('-').map(Number);
+const daysIn = ym => { const [y, m] = ymParts(ym); return new Date(y, m, 0).getDate(); };
+const wdOf = (ym, d) => { const [y, m] = ymParts(ym); return new Date(y, m - 1, d).getDay(); };
+const addMonth = (ym, k) => { const [y, m] = ymParts(ym); const d = new Date(y, m - 1 + k, 1); return ymOf(d.getFullYear(), d.getMonth() + 1); };
+const nowYm = () => { const d = new Date(); return ymOf(d.getFullYear(), d.getMonth() + 1); };
+
+const month = ym => (S.months[ym] = S.months[ym] || { days: {} });
+const rec = (ym, d) => { const mo = S.months[ym]; return mo && mo.days && mo.days[d] || null; };
+const hasEntry = r => !!(r && (r.driver || r.site || num(r.before) != null || num(r.after) != null));
+
+// この日より前で、最後に走行後が入っている記録（月をまたいで探す）
+function prevAfter(ym, d) {
+  for (let i = d - 1; i >= 1; i--) { const r = rec(ym, i); if (r && num(r.after) != null) return { val: num(r.after), ym, d: i }; }
+  const keys = Object.keys(S.months).filter(k => k < ym).sort().reverse();
+  for (const k of keys) {
+    for (let i = daysIn(k); i >= 1; i--) { const r = rec(k, i); if (r && num(r.after) != null) return { val: num(r.after), ym: k, d: i }; }
+  }
+  return null;
+}
+function beforeOf(ym, d) {
+  const r = rec(ym, d);
+  if (r && num(r.before) != null) return { val: num(r.before), manual: true };
+  const p = prevAfter(ym, d);
+  return p ? { val: p.val, manual: false, from: p } : null;
+}
+function runOf(ym, d) {
+  const r = rec(ym, d), a = r ? num(r.after) : null, b = beforeOf(ym, d);
+  return a != null && b ? a - b.val : null;
+}
+function cleanup(ym, d) { const mo = S.months[ym]; if (mo && mo.days[d] && !hasEntry(mo.days[d])) delete mo.days[d]; }
+
+/* ================= 画面 ================= */
+let ym = nowYm();
+function renderAll() {
+  $('#hCar').textContent = S.cfg.car || '';
+  const [y, m] = ymParts(ym);
+  $('#mPick').value = ym; $('#vYear').textContent = y; $('#vMonth').textContent = m;
+  $('#pCar').textContent = S.cfg.car || ''; $('#pMgr').textContent = S.cfg.manager || '';
+  renderTable(); renderSummary();
+}
+function renderTable() {
+  const t = $('#table'); t.innerHTML = '';
+  ['日付', '曜日', '運転者', '現場名', '走行前', '走行後', '実走行'].forEach(h => { const c = document.createElement('div'); c.className = 'h'; c.textContent = h; t.appendChild(c); });
+  const [y, m] = ymParts(ym), tYm = nowYm(), tD = new Date().getDate();
+  for (let d = 1; d <= daysIn(ym); d++) {
+    const w = wdOf(ym, d), r = rec(ym, d), e = hasEntry(r);
+    const b = e ? beforeOf(ym, d) : null, a = e ? num(r.after) : null, run = e ? runOf(ym, d) : null;
+    const extra = (w === 6 ? ' sat' : w === 0 ? ' sun' : '') + (ym === tYm && d === tD ? ' today' : '') + ' tap';
+    const vals = [[`${y}/${m}/${d}`, 'c'], [WD[w], 'c'], [e && r.driver || '', 'c t'], [e && r.site || '', 't'],
+      [b ? fmt(b.val) : '', 'n'], [a != null ? fmt(a) : '', 'n'], [run != null ? fmt(run) : '', 'n' + (run != null && run < 0 ? ' bad' : '')]];
+    vals.forEach(([v, cls], i) => {
+      const c = document.createElement('div'); c.className = cls + extra; c.textContent = v; c.dataset.d = d;
+      if (i === 0) c.id = 'day' + d;
+      c.addEventListener('click', () => openDay(d)); t.appendChild(c);
+    });
+  }
+}
+function sumRun() { let s = 0, n = 0; for (let d = 1; d <= daysIn(ym); d++) { const r = runOf(ym, d); if (r != null && hasEntry(rec(ym, d))) { s += r; n++; } } return { s, n }; }
+function renderSummary() {
+  const mo = S.months[ym] || {};
+  $('#sRun').value = mo.run || ''; $('#sMonth').value = mo.monthRun || '';
+  $('#oKm').value = mo.oilKm || '';
+  document.querySelectorAll('#oEl button').forEach(b => b.classList.toggle('on', mo.element === b.dataset.v));
+  const { s, n } = sumRun(), h = $('#sumHint'); h.innerHTML = '';
+  if (n) {
+    h.append(`参考：この月の実走行の合計 ${fmt(s)} km（${n}日）`);
+    const b = document.createElement('button'); b.className = 'btn'; b.textContent = '入れる';
+    b.onclick = () => { month(ym).run = String(s); save(); renderSummary(); };
+    h.appendChild(b);
+  }
+}
+const bindMonthField = (id, key) => $(id).addEventListener('input', e => { month(ym)[key] = e.target.value.trim(); save(); });
+bindMonthField('#sRun', 'run'); bindMonthField('#sMonth', 'monthRun'); bindMonthField('#oKm', 'oilKm');
+$('#oEl').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const mo = month(ym); mo.element = mo.element === b.dataset.v ? '' : b.dataset.v; save(); renderSummary();
+});
+
+function setMonth(v) { if (!/^\d{4}-\d{2}$/.test(v)) return; ym = v; renderAll(); window.scrollTo(0, 0); }
+$('#mPrev').onclick = () => setMonth(addMonth(ym, -1));
+$('#mNext').onclick = () => setMonth(addMonth(ym, 1));
+$('#mPick').addEventListener('change', e => setMonth(e.target.value));
+$('#mToday').onclick = () => {
+  if (ym !== nowYm()) setMonth(nowYm());
+  const row = document.getElementById('day' + new Date().getDate());
+  if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+};
+
+/* ================= 1日分の入力 ================= */
+let curD = null;
+function getRec(d) { const mo = month(ym); return (mo.days[d] = mo.days[d] || {}); }
+function openDay(d) {
+  curD = d;
+  const w = wdOf(ym, d), [, m] = ymParts(ym), r = rec(ym, d) || {};
+  $('#dTitle').className = w === 6 ? 'sat' : w === 0 ? 'sun' : '';
+  $('#dTitleText').textContent = `${m}月${d}日（${WD[w]}）`;
+  $('#dDriver').value = r.driver || '';
+  $('#dSite').value = r.site || '';
+  $('#dAfter').value = num(r.after) != null ? num(r.after) : '';
+  showBefore(true); renderChips(); showRun();
+  $('#dPrev').disabled = d <= 1;
+  $('#dNext').textContent = d >= daysIn(ym) ? '翌月へ ▶' : '次の日 ▶';
+  $('#dayShade').hidden = false;
+}
+function showBefore(setValue) {
+  const b = beforeOf(ym, curD), sub = $('#dBeforeSub'); sub.innerHTML = '';
+  if (setValue) $('#dBefore').value = b ? b.val : '';
+  if (!b) { sub.textContent = '前の記録がありません。メーターの数字を入力'; return; }
+  if (b.manual) {
+    sub.append('手入力 ');
+    const p = prevAfter(ym, curD);
+    if (p) { const bt = document.createElement('button'); bt.className = 'btn'; bt.textContent = '自動に戻す';
+      bt.onclick = () => { const r = getRec(curD); delete r.before; cleanup(ym, curD); save(); showBefore(true); showRun(); renderTable(); };
+      sub.appendChild(bt); }
+  } else {
+    const [fy, fm] = ymParts(b.from.ym);
+    sub.textContent = `自動：${fm}/${b.from.d} の走行後`;
+  }
+}
+function showRun() {
+  const r = rec(ym, curD), a = r ? num(r.after) : null, b = beforeOf(ym, curD), box = $('#dRunBox');
+  const run = a != null && b ? a - b.val : null;
+  $('#dRun').textContent = run != null ? fmt(run) : '—';
+  box.classList.toggle('bad', run != null && run < 0);
+  $('#dRunMsg').textContent = run != null && run < 0 ? '走行後が走行前より小さいです' : '';
+}
+function renderChips() {
+  const box = $('#dChips'); box.innerHTML = '';
+  const v = $('#dDriver').value.trim();
+  for (const name of S.cfg.drivers) {
+    const c = document.createElement('button'); c.type = 'button'; c.className = 'chip' + (name === v ? ' on' : ''); c.textContent = name;
+    c.onclick = () => { const nv = $('#dDriver').value.trim() === name ? '' : name; $('#dDriver').value = nv; setField('driver', nv); renderChips(); };
+    box.appendChild(c);
+  }
+}
+function setField(k, v) {
+  const r = getRec(curD);
+  if (v === '' || v == null) delete r[k]; else r[k] = v;
+  cleanup(ym, curD); save(); renderTable();
+}
+$('#dDriver').addEventListener('input', e => { setField('driver', e.target.value.trim()); renderChips(); });
+$('#dSite').addEventListener('input', e => setField('site', e.target.value.trim()));
+$('#dAfter').addEventListener('input', e => {
+  const n = num(e.target.value); setField('after', n != null ? n : '');
+  showRun(); if (n == null && e.target.value.trim()) $('#dRunMsg').textContent = '数字で入力してください';
+});
+$('#dBefore').addEventListener('input', e => {
+  const n = num(e.target.value), p = prevAfter(ym, curD), r = getRec(curD);
+  // 自動の値と同じ・空欄なら「自動」に戻す
+  if (n == null || (p && n === p.val)) delete r.before; else r.before = n;
+  cleanup(ym, curD); save(); showBefore(false); showRun(); renderTable();
+});
+function addDriver(name) {
+  if (!name) return;
+  S.cfg.drivers = [name, ...S.cfg.drivers.filter(x => x !== name)]; save();
+}
+function closeDay() {
+  if (curD == null) return;
+  const r = rec(ym, curD);
+  if (r && r.driver) addDriver(r.driver);
+  if (document.activeElement) document.activeElement.blur();
+  curD = null; $('#dayShade').hidden = true; renderAll();
+}
+$('#dClose').onclick = closeDay;
+$('#dayShade').addEventListener('click', e => { if (e.target.id === 'dayShade') closeDay(); });
+$('#dPrev').onclick = () => { const d = curD; const r = rec(ym, d); if (r && r.driver) addDriver(r.driver); if (d > 1) openDay(d - 1); };
+$('#dNext').onclick = () => {
+  const d = curD; const r = rec(ym, d); if (r && r.driver) addDriver(r.driver);
+  if (d < daysIn(ym)) openDay(d + 1); else { ym = addMonth(ym, 1); renderAll(); openDay(1); }
+};
+$('#dClear').onclick = () => {
+  if (!confirm('この日の入力を消しますか？')) return;
+  const mo = S.months[ym]; if (mo) delete mo.days[curD]; save(); openDay(curD); renderTable();
+};
+
+/* ================= 設定 ================= */
+function renderSettings() {
+  $('#cCar').value = S.cfg.car || ''; $('#cMgr').value = S.cfg.manager || '';
+  const box = $('#cDrivers'); box.innerHTML = '';
+  if (!S.cfg.drivers.length) { const e = document.createElement('div'); e.innerHTML = '<span style="color:#8a959f">まだありません</span>'; box.appendChild(e); }
+  for (const name of S.cfg.drivers) {
+    const row = document.createElement('div'), sp = document.createElement('span'), b = document.createElement('button');
+    sp.textContent = name; b.textContent = '× 外す';
+    b.onclick = () => { S.cfg.drivers = S.cfg.drivers.filter(x => x !== name); save(); renderSettings(); };
+    row.append(sp, b); box.appendChild(row);
+  }
+}
+$('#btnMenu').onclick = () => { renderSettings(); $('#setShade').hidden = false; };
+$('#setClose').onclick = () => { $('#setShade').hidden = true; renderAll(); };
+$('#cCar').addEventListener('input', e => { S.cfg.car = e.target.value.trim(); save(); });
+$('#cMgr').addEventListener('input', e => { S.cfg.manager = e.target.value.trim(); save(); });
+$('#bkSave').onclick = () => {
+  const d = new Date(), name = `車両日報_バックアップ_${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}.json`;
+  share([new File([JSON.stringify(S, null, 1)], name, { type: 'application/json' })], '車両日報バックアップ', false);
+};
+$('#bkLoad').onclick = () => $('#bkFile').click();
+$('#bkFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!d || !d.months || !d.cfg) throw new Error('車両日報のバックアップではありません');
+    if (!confirm('今の内容をバックアップの内容に置き換えます。よろしいですか？')) return;
+    S = d; S.cfg.drivers = S.cfg.drivers || []; save(); renderSettings(); renderAll(); toast('戻しました');
+  } catch (err) { alert('読み込めませんでした。\n' + err.message); }
+});
+
+/* ================= 出力用の行データ ================= */
+function sheetData(ym) {
+  const [y, m] = ymParts(ym), mo = S.months[ym] || {};
+  const rows = [];
+  for (let d = 1; d <= daysIn(ym); d++) {
+    const r = rec(ym, d), w = wdOf(ym, d), e = hasEntry(r), b = e ? beforeOf(ym, d) : null;
+    rows.push({ date: `${y}/${m}/${d}`, wd: WD[w], w, driver: e && r.driver || '', site: e && r.site || '',
+      before: b ? b.val : null, after: e ? num(r.after) : null, run: e ? runOf(ym, d) : null });
+  }
+  return { y, m, rows, car: S.cfg.car || '', manager: S.cfg.manager || '',
+    run: num(mo.run) != null ? num(mo.run) : (mo.run || ''), monthRun: num(mo.monthRun) != null ? num(mo.monthRun) : (mo.monthRun || ''),
+    oilKm: num(mo.oilKm) != null ? num(mo.oilKm) : (mo.oilKm || ''), element: mo.element || '' };
+}
+const CHECK_TEXT = '照明・ウインカー・ストップランプ・車幅灯・タイヤのへり空気圧';
+const FILL = { sat: '#9BCB7A', sun: '#F2A578', head: '#D5DCE8', title: '#C9D3E3' };
+
+/* ================= PDF（A4縦・1ページ） ================= */
+const FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif';
+function renderSheet(D, dpi = 200) {
+  const K = dpi / 25.4, cv = document.createElement('canvas');
+  cv.width = Math.round(210 * K); cv.height = Math.round(297 * K);
+  const g = cv.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+  g.scale(K, K); g.textBaseline = 'middle';
+  const rect = (x, y, w, h, fill, lw = 0.25) => { if (fill) { g.fillStyle = fill; g.fillRect(x, y, w, h); } if (lw) { g.lineWidth = lw; g.strokeStyle = '#000'; g.strokeRect(x, y, w, h); } };
+  const text = (t, x, y, w, h, o = {}) => {
+    t = t == null ? '' : String(t); if (!t) return;
+    const size = o.size || 3.4, pad = o.pad != null ? o.pad : 1.2;
+    let s = size; g.font = `${o.bold ? 700 : 400} ${s}px ${FONT}`;
+    const avail = w - pad * 2, tw = g.measureText(t).width;
+    if (tw > avail) { s = size * avail / tw; g.font = `${o.bold ? 700 : 400} ${s}px ${FONT}`; }
+    g.fillStyle = o.color || '#000'; g.textAlign = o.align || 'center';
+    const tx = o.align === 'left' ? x + pad : o.align === 'right' ? x + w - pad : x + w / 2;
+    g.fillText(t, tx, y + h / 2 + 0.15);
+  };
+  const L = 10, colW = [26, 13, 19, 66, 22, 22, 22], X = [L]; colW.forEach(w => X.push(X[X.length - 1] + w));
+  // 年・月
+  rect(X[0], 10, colW[0], 7, FILL.head); rect(X[1], 10, colW[1], 7, FILL.head);
+  text('年', X[0], 10, colW[0], 7, { size: 3.6 }); text('月', X[1], 10, colW[1], 7, { size: 3.6 });
+  rect(X[0], 17, colW[0], 13); rect(X[1], 17, colW[1], 13);
+  text(D.y, X[0], 17, colW[0], 13, { size: 6, bold: true }); text(D.m, X[1], 17, colW[1], 13, { size: 6, bold: true });
+  // 表題
+  const tx = X[3], tw = colW[3];
+  g.fillStyle = FILL.title; g.fillRect(tx, 8, tw, 12);
+  g.font = `700 7px ${FONT}`; g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('車 両 日 報', tx + tw / 2, 14.3);
+  g.lineWidth = 0.35; g.beginPath(); g.moveTo(tx, 21); g.lineTo(tx + tw, 21); g.moveTo(tx, 22); g.lineTo(tx + tw, 22); g.stroke();
+  text(D.car, tx, 24, tw, 8, { size: 4.2 });
+  text(D.manager, X[6], 28, colW[6], 7, { size: 4.2, align: 'left', pad: 1 });
+  text('車両管理者：', X[4], 28, X[6] - X[4], 7, { size: 3.3, align: 'right', pad: 0.5 });
+  // 見出し
+  const heads = ['日付', '曜日', '運転者', '現場名', '走行前', '走行後', '実走行'];
+  let y = 38; const HH = 8, RH = 6.9;
+  heads.forEach((h, i) => { rect(X[i], y, colW[i], HH); text(h, X[i], y, colW[i], HH, { size: 3.8 }); });
+  y += HH;
+  for (const r of D.rows) {
+    const fill = r.w === 6 ? FILL.sat : r.w === 0 ? FILL.sun : null;
+    const vals = [r.date, r.wd, r.driver, r.site, fmt(r.before), fmt(r.after), fmt(r.run)];
+    vals.forEach((v, i) => {
+      rect(X[i], y, colW[i], RH, fill);
+      text(v, X[i], y, colW[i], RH, { size: i === 3 ? 3.4 : 3.5, align: i === 3 ? 'left' : i >= 4 ? 'right' : 'center', pad: i >= 4 ? 2.5 : 1.5,
+        color: i === 6 && r.run != null && r.run < 0 ? '#c62828' : '#000' });
+    });
+    y += RH;
+  }
+  // 下の2行
+  const BH = 7.4, aW = colW[0] + colW[1], bW = colW[2] + colW[3], vW = colW[5] + colW[6];
+  const bottom = (label, mid, lab2, val, midDraw) => {
+    rect(X[0], y, aW, BH, FILL.head); text(label, X[0], y, aW, BH, { size: 3.3 });
+    rect(X[2], y, bW, BH, '#EEF1F5'); if (midDraw) midDraw(X[2], y, bW, BH); else text(mid, X[2], y, bW, BH, { size: 3.0 });
+    rect(X[4], y, colW[4], BH); text(lab2, X[4], y, colW[4], BH, { size: 3.8 });
+    rect(X[5], y, vW, BH); text(val === '' ? '' : (typeof val === 'number' ? fmt(val) : val) + ' km', X[5], y, vW, BH, { size: 3.8, align: 'right', pad: 3 });
+    y += BH;
+  };
+  bottom('走行前点検：', CHECK_TEXT, '実走行', D.run);
+  bottom('オイル交換情報：', '', '月間走行', D.monthRun, (x, yy, w, h) => {
+    const km = D.oilKm === '' ? '' : (typeof D.oilKm === 'number' ? fmt(D.oilKm) : D.oilKm) + ' km';
+    g.font = `400 3.1px ${FONT}`;
+    const a = 'エレメント交換', aw = g.measureText(a).width, total = aw + 1.5 + g.measureText('有・無').width;
+    const sx = x + w - 2.5 - total, cy = yy + h / 2 + 0.15;
+    text('●交換時走行距離：' + km, x, yy, sx - x - 1, h, { size: 3.1, align: 'left', pad: 2 });
+    g.font = `400 3.1px ${FONT}`; g.textAlign = 'left'; g.fillStyle = '#000';
+    g.fillText(a, sx, cy);
+    const yx = sx + aw + 1.5, yw = g.measureText('有').width; g.fillText('有', yx, cy);
+    const dx = yx + yw, dw = g.measureText('・').width; g.fillText('・', dx, cy);
+    const nx = dx + dw, nw = g.measureText('無').width; g.fillText('無', nx, cy);
+    const circle = (cx, r) => { g.lineWidth = 0.3; g.beginPath(); g.arc(cx, yy + h / 2, r, 0, Math.PI * 2); g.stroke(); };
+    if (D.element === '有') circle(yx + yw / 2, 2.3);
+    if (D.element === '無') circle(nx + nw / 2, 2.3);
+  });
+  // 外枠を少し太く
+  g.lineWidth = 0.5; g.strokeRect(X[0], 38, X[7] - X[0], y - 38);
+  return cv;
+}
+async function buildPdf(canvases) {
+  const chunks = [], offs = []; let pos = 0;
+  const add = x => { const u = typeof x === 'string' ? enc.encode(x) : x; chunks.push(u); pos += u.length; };
+  const obj = (n, body) => { offs[n] = pos; add(`${n} 0 obj\n`); (Array.isArray(body) ? body : [body]).forEach(add); add('\nendobj\n'); };
+  add(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A, 0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A]));
+  const n = canvases.length, W = 595.28, H = 841.89;
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, `<< /Type /Pages /Kids [${canvases.map((_, i) => `${3 + i * 3} 0 R`).join(' ')}] /Count ${n} >>`);
+  for (let i = 0; i < n; i++) {
+    const cv = canvases[i], pn = 3 + i * 3;
+    const jpg = new Uint8Array(await (await toBlob(cv, 'image/jpeg', 0.9)).arrayBuffer());
+    const content = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+    obj(pn, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 ${pn + 2} 0 R >> >> /Contents ${pn + 1} 0 R >>`);
+    obj(pn + 1, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    obj(pn + 2, [`<< /Type /XObject /Subtype /Image /Width ${cv.width} /Height ${cv.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`, jpg, '\nendstream']);
+  }
+  const total = 3 + n * 3, xref = pos;
+  let x = `xref\n0 ${total}\n0000000000 65535 f \n`;
+  for (let i = 1; i < total; i++) x += String(offs[i]).padStart(10, '0') + ' 00000 n \n';
+  add(x + `trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+
+/* ================= Excel（自前でxlsxを組み立てる） ================= */
+const xmlEsc = s => String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(files) {
+  const parts = [], central = []; let offset = 0;
+  const d = new Date();
+  const dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  for (const f of files) {
+    const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, dosTime, true); h.setUint16(12, dosDate, true); h.setUint32(14, crc, true);
+    h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+    parts.push(h.buffer, name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, dosTime, true); c.setUint16(14, dosDate, true); c.setUint32(16, crc, true);
+    c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true);
+    c.setUint32(42, offset, true);
+    central.push(c.buffer, name);
+    offset += 30 + name.length + data.length;
+  }
+  const cdSize = central.reduce((a, b) => a + b.byteLength, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, e.buffer], { type: XLSX_MIME });
+}
+function xlStyles() {
+  const fonts = ['<font><sz val="11"/><name val="游ゴシック"/><family val="3"/><charset val="128"/></font>'];
+  const fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'];
+  const borders = ['<border><left/><right/><top/><bottom/><diagonal/></border>',
+    '<border>' + ['left', 'right', 'top', 'bottom'].map(t => `<${t} style="thin"><color rgb="FF000000"/></${t}>`).join('') + '<diagonal/></border>'];
+  const xfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'];
+  const idx = (arr, x) => { let i = arr.indexOf(x); if (i < 0) { arr.push(x); i = arr.length - 1; } return i; };
+  const rgb = c => 'FF' + c.replace('#', '').toUpperCase();
+  return {
+    xf({ sz = 11, b = false, color, fill, border = true, h = 'center', num = 0, shrink = false } = {}) {
+      const fi = idx(fonts, `<font>${b ? '<b/>' : ''}<sz val="${sz}"/>${color ? `<color rgb="${rgb(color)}"/>` : ''}<name val="游ゴシック"/><family val="3"/><charset val="128"/></font>`);
+      const fl = fill ? idx(fills, `<fill><patternFill patternType="solid"><fgColor rgb="${rgb(fill)}"/><bgColor indexed="64"/></patternFill></fill>`) : 0;
+      const al = `<alignment horizontal="${h}" vertical="center"${shrink ? ' shrinkToFit="1"' : ''}/>`;
+      return idx(xfs, `<xf numFmtId="${num}" fontId="${fi}" fillId="${fl}" borderId="${border ? 1 : 0}" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">${al}</xf>`);
+    },
+    xml() {
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        `<fonts count="${fonts.length}">${fonts.join('')}</fonts><fills count="${fills.length}">${fills.join('')}</fills>` +
+        `<borders count="${borders.length}">${borders.join('')}</borders>` +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        `<cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs>` +
+        '<cellStyles count="1"><cellStyle name="標準" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+    },
+  };
+}
+const colName = c => String.fromCharCode(64 + c);
+function buildXlsx(D) {
+  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const NSR = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const st = xlStyles(), sst = [], sstMap = new Map();
+  const sIdx = s => { if (!sstMap.has(s)) { sstMap.set(s, sst.length); sst.push(s); } return sstMap.get(s); };
+  const rows = new Map(), heights = new Map(), merges = [];
+  const put = (r, c, v, style) => { if (!rows.has(r)) rows.set(r, new Map()); rows.get(r).set(c, { v, s: style }); };
+  const box = (r1, c1, r2, c2, v, style) => { for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) put(r, c, r === r1 && c === c1 ? v : null, style); if (r2 > r1 || c2 > c1) merges.push(`${colName(c1)}${r1}:${colName(c2)}${r2}`); };
+  const sHead = st.xf({ fill: FILL.head });
+  box(1, 1, 1, 1, '年', sHead); box(1, 2, 1, 2, '月', sHead);
+  box(2, 1, 2, 1, D.y, st.xf({ sz: 18, b: true })); box(2, 2, 2, 2, D.m, st.xf({ sz: 18, b: true }));
+  box(1, 4, 2, 4, '車　両　日　報', st.xf({ sz: 20, b: true, fill: FILL.title, border: false }));
+  box(3, 4, 3, 4, D.car, st.xf({ sz: 13, border: false }));
+  box(3, 5, 3, 6, '車両管理者：', st.xf({ border: false, h: 'right' }));
+  box(3, 7, 3, 7, D.manager, st.xf({ sz: 13, border: false }));
+  heights.set(1, 24); heights.set(2, 36); heights.set(3, 26);
+  ['日付', '曜日', '運転者', '現場名', '走行前', '走行後', '実走行'].forEach((h, i) => put(4, i + 1, h, st.xf({ sz: 12 })));
+  heights.set(4, 26);
+  let r = 5;
+  for (const x of D.rows) {
+    const fill = x.w === 6 ? FILL.sat : x.w === 0 ? FILL.sun : undefined;
+    const s = st.xf({ fill }), sl = st.xf({ fill, h: 'left', shrink: true }), sn = st.xf({ fill, h: 'right', num: 3 });
+    put(r, 1, x.date, s); put(r, 2, x.wd, s); put(r, 3, x.driver, st.xf({ fill, shrink: true })); put(r, 4, x.site, sl);
+    put(r, 5, x.before, sn); put(r, 6, x.after, sn);
+    put(r, 7, x.run, x.run != null && x.run < 0 ? st.xf({ fill, h: 'right', num: 3, color: '#C62828' }) : sn);
+    heights.set(r, 20); r++;
+  }
+  const kmFmt = 178; // #,##0"km"
+  const vStyle = st.xf({ h: 'right', num: kmFmt, sz: 12 });
+  const sLab = st.xf({ fill: FILL.head, sz: 10 }), sMid = st.xf({ fill: '#EEF1F5', sz: 9, h: 'left', shrink: true });
+  box(r, 1, r, 2, '走行前点検：', sLab); box(r, 3, r, 4, CHECK_TEXT, sMid); box(r, 5, r, 5, '実走行', st.xf({ sz: 12 })); box(r, 6, r, 7, D.run === '' ? null : D.run, vStyle);
+  heights.set(r, 22); r++;
+  const oil = '●交換時走行距離：' + (D.oilKm === '' ? '　　　　' : (typeof D.oilKm === 'number' ? fmt(D.oilKm) : D.oilKm) + ' km') +
+    '　　エレメント交換：' + (D.element ? D.element : '有・無');
+  box(r, 1, r, 2, 'オイル交換情報：', sLab); box(r, 3, r, 4, oil, sMid); box(r, 5, r, 5, '月間走行', st.xf({ sz: 12 })); box(r, 6, r, 7, D.monthRun === '' ? null : D.monthRun, vStyle);
+  heights.set(r, 22);
+  const lastRow = r;
+  let rowsXml = '';
+  for (let i = 1; i <= lastRow; i++) {
+    const m = rows.get(i); let cx = '';
+    if (m) for (const c of [...m.keys()].sort((a, b) => a - b)) {
+      const { v, s } = m.get(c), ref = colName(c) + i;
+      if (v == null || v === '') cx += `<c r="${ref}" s="${s}"/>`;
+      else if (typeof v === 'number') cx += `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+      else cx += `<c r="${ref}" s="${s}" t="s"><v>${sIdx(String(v))}</v></c>`;
+    }
+    rowsXml += `<row r="${i}" ht="${heights.get(i) || 18}" customHeight="1">${cx}</row>`;
+  }
+  const widths = [13, 6, 11, 40, 11, 11, 11];
+  const sheetName = `${D.y}年${D.m}月`;
+  const sheet = HEAD + `<worksheet xmlns="${NS}" xmlns:r="${NSR}"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:G${lastRow}"/>` +
+    '<sheetViews><sheetView showGridLines="0" tabSelected="1" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="18"/>' +
+    `<cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>` +
+    `<sheetData>${rowsXml}</sheetData>` +
+    `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` +
+    '<printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.4" bottom="0.4" header="0.3" footer="0.3"/>' +
+    '<pageSetup paperSize="9" fitToWidth="1" fitToHeight="1" orientation="portrait"/></worksheet>';
+  let styles = st.xml().replace('<fonts', '<numFmts count="1"><numFmt numFmtId="178" formatCode="#,##0&quot; km&quot;"/></numFmts><fonts');
+  const files = [
+    { name: '[Content_Types].xml', data: HEAD + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>' },
+    { name: '_rels/.rels', data: HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${NSR}/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { name: 'xl/workbook.xml', data: HEAD + `<workbook xmlns="${NS}" xmlns:r="${NSR}"><bookViews><workbookView/></bookViews><sheets><sheet name="${xmlEsc(sheetName)}" sheetId="1" r:id="rId1"/></sheets>` +
+      `<definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">'${xmlEsc(sheetName)}'!$A$1:$G$${lastRow}</definedName></definedNames></workbook>` },
+    { name: 'xl/_rels/workbook.xml.rels', data: HEAD + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      `<Relationship Id="rId1" Type="${NSR}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${NSR}/styles" Target="styles.xml"/>` +
+      `<Relationship Id="rId3" Type="${NSR}/sharedStrings" Target="sharedStrings.xml"/></Relationships>` },
+    { name: 'xl/worksheets/sheet1.xml', data: sheet },
+    { name: 'xl/styles.xml', data: styles },
+    { name: 'xl/sharedStrings.xml', data: HEAD + `<sst xmlns="${NS}" count="${sst.length}" uniqueCount="${sst.length}">` +
+      sst.map(s => `<si><t xml:space="preserve">${xmlEsc(s)}</t></si>`).join('') + '</sst>' },
+  ];
+  return zipStore(files);
+}
+
+/* ================= 出力・共有 ================= */
+function fileBase(D) { const car = (D.car || '').replace(/[\\/:*?"<>|\s]+/g, '_'); return `車両日報_${D.y}${pad2(D.m)}${car ? '_' + car : ''}`; }
+function download(file) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+async function share(files, title) {
+  if (navigator.canShare && navigator.canShare({ files })) {
+    try { await navigator.share({ files, title }); }
+    catch (e) { if (e.name !== 'AbortError') { toast('共有できなかったので保存します'); files.forEach(download); } }
+  } else { files.forEach((f, i) => setTimeout(() => download(f), i * 600)); toast('ダウンロードしました'); }
+}
+let outFiles = null, outTitle = '';
+async function makeOutFiles() {
+  const D = sheetData(ym), base = fileBase(D);
+  const pdf = new File([await buildPdf([renderSheet(D)])], base + '.pdf', { type: 'application/pdf' });
+  const xlsx = new File([buildXlsx(D)], base + '.xlsx', { type: XLSX_MIME });
+  return { pdf, xlsx, D };
+}
+window.makeOutFiles = makeOutFiles; // 動作確認用
+$('#btnOut').onclick = async () => {
+  busy(true, 'PDFとExcelを作成中…');
+  try {
+    const o = await makeOutFiles(); outFiles = o; outTitle = `車両日報　${o.D.y}年${o.D.m}月　${o.D.car}`;
+    const kb = f => Math.max(1, Math.round(f.size / 1024)) + 'KB';
+    $('#readyMsg').textContent = `${o.D.y}年${o.D.m}月分　PDF ${kb(o.pdf)}・Excel ${kb(o.xlsx)}`;
+    $('#ready').hidden = false;
+  } catch (e) { alert('作成に失敗しました。\n' + e.message); }
+  finally { busy(false); }
+};
+$('#rBoth').onclick = () => share([outFiles.pdf, outFiles.xlsx], outTitle);
+$('#rPdf').onclick = () => share([outFiles.pdf], outTitle);
+$('#rXlsx').onclick = () => share([outFiles.xlsx], outTitle);
+$('#rDl').onclick = () => { download(outFiles.pdf); setTimeout(() => download(outFiles.xlsx), 600); };
+$('#rClose').onclick = () => { $('#ready').hidden = true; };
+
+renderAll();
+</script>
+</body>
+</html>
